@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "PDF generation service and certificate template: ReportLab-based PDF generator with professional certificate template design, file management service for path generation and storage, and the certificate template layout. Implements the core certificate generation logic that will be called by Celery tasks. Depends on FEAT-001 (infrastructure) and FEAT-002 (models for data structures).",
+  "status": "pending",
+  "steps": [
+    "Create app/templates/certificate_template.py: Define certificate layout constants: PAGE_WIDTH, PAGE_HEIGHT (A4 landscape: 297mm x 210mm = 842pt x 595pt), MARGIN (50pt), TITLE_FONT_SIZE (36pt), SUBTITLE_FONT_SIZE (18pt), BODY_FONT_SIZE (14pt), colors (primary: navy blue #1a237e, accent: gold #ffd700). Define draw_certificate_border(), draw_certificate_header(), draw_recipient_info(), draw_certificate_footer() helper functions.",
+    "Create app/services/pdf_generator.py: Main generate_certificate_pdf() function with parameters (recipient_name, course, completion_date, output_path). Logic: 1) Create ReportLab canvas with A4 landscape, 2) Draw border with gold accent, 3) Draw header with 'Certificate of Completion' title centered, 4) Draw main body: 'This is to certify that', recipient name in large font, 'has successfully completed', course name, 'on', formatted date, 5) Add decorative elements (lines, optional logo placeholder), 6) Save PDF to output_path, 7) Return file size in bytes. Handle exceptions (disk full, permission denied) and raise specific errors.",
+    "Create app/services/file_manager.py: FileManager class with methods: generate_certificate_path(job_id: UUID, cert_id: UUID) -> Path (returns data/certificates/<job_id>/<cert_id>.pdf), ensure_job_directory(job_id: UUID) -> Path (creates directory if not exists), get_certificate_filename(recipient_name: str, cert_id: UUID) -> str (creates safe filename), validate_storage_path() (checks disk space, write permissions). Use pathlib.Path for cross-platform compatibility.",
+    "Add validation: Ensure certificate storage directory exists and is writable on app startup (in app/main.py startup event)",
+    "Create unit tests in tests/unit/test_pdf_generator.py: test_generate_valid_certificate (creates PDF, checks file exists, size > 0), test_certificate_content (verify PDF contains recipient name using PyPDF2), test_invalid_output_path (verify error handling), test_special_characters_in_name (test unicode, apostrophes, hyphens)",
+    "Create unit tests in tests/unit/test_file_manager.py: test_generate_certificate_path (verify path format), test_ensure_job_directory (creates dirs recursively), test_safe_filename_generation (test path traversal prevention, special char sanitization)"
+  ],
+  "acceptance_criteria": [
+    "generate_certificate_pdf() creates valid PDF files readable by PDF viewers",
+    "Certificate template looks professional with proper layout and fonts",
+    "PDF contains all recipient information: name, course, completion date",
+    "FileManager correctly generates hierarchical paths: data/certificates/<job_id>/<cert_id>.pdf",
+    "Directory creation is idempotent (no errors if directory exists)",
+    "PDF generation handles unicode characters in recipient names",
+    "File operations have proper error handling for disk full, permissions",
+    "Unit tests achieve >80% coverage for pdf_generator and file_manager modules"
+  ],
+  "verification": [
+    "Run: docker-compose exec api pytest tests/unit/test_pdf_generator.py -v - all tests pass",
+    "Run: docker-compose exec api pytest tests/unit/test_file_manager.py -v - all tests pass",
+    "Run: docker-compose exec api python -c \"from app.services.pdf_generator import generate_certificate_pdf; from pathlib import Path; p=Path('/tmp/test.pdf'); generate_certificate_pdf('John Doe', 'Python 101', '2024-03-15', p); print(f'Generated: {p.stat().st_size} bytes')\" - verify PDF created",
+    "Manually open generated test.pdf in a PDF viewer - verify content and layout are correct",
+    "Run: docker-compose exec api pytest tests/unit/ --cov=app.services --cov-report=term - verify >80% coverage"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

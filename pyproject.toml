@@ -1,0 +1,39 @@
+[project]
+name = "bulk-certificate-generator"
+version = "1.0.0"
+description = "Backend API for bulk certificate generation"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.109.2",
+    "uvicorn[standard]==0.27.1",
+    "sqlalchemy==2.0.27",
+    "alembic==1.13.1",
+    "psycopg2-binary==2.9.9",
+    "asyncpg==0.29.0",
+    "pydantic==2.6.1",
+    "pydantic-settings==2.1.0",
+    "celery==5.3.6",
+    "redis==5.0.1",
+    "reportlab==4.1.0",
+    "pytest==8.0.0",
+    "pytest-asyncio==0.23.5",
+    "pytest-cov==4.1.0",
+    "httpx==0.26.0",
+    "python-multipart==0.0.9",
+]
+
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto"
+addopts = "-v --cov=app --cov-report=html --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/conftest.py"]

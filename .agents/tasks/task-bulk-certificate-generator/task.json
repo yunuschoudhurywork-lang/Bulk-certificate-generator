@@ -1,0 +1,13 @@
+{
+  "task_id": "task-bulk-certificate-generator",
+  "task_description": "Build a production-ready FastAPI backend that accepts bulk certificate generation requests, processes them asynchronously with Celery, tracks job progress, handles individual failures gracefully, and provides certificate retrieval endpoints",
+  "status": "pending",
+  "feature_order": [
+    "FEAT-001",
+    "FEAT-002",
+    "FEAT-003",
+    "FEAT-004",
+    "FEAT-005"
+  ],
+  "blocked_reason": null
+}

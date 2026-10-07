@@ -1,0 +1,45 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "REST API endpoints implementation and end-to-end testing: Implements all 5 REST endpoints per specification (create job, get job status, list job certificates, download certificate, list all jobs), comprehensive integration tests, end-to-end workflow tests, and complete README documentation. This brings together all previous features into the user-facing API. Depends on all previous features: FEAT-001 (infrastructure), FEAT-002 (models/schemas), FEAT-003 (PDF generation), FEAT-004 (services/Celery).",
+  "status": "pending",
+  "steps": [
+    "Create app/api/routes/jobs.py: POST /api/v1/jobs endpoint: validate CreateJobRequest, call job_service.create_job_with_recipients(), enqueue generate_certificates_for_job.delay(job_id), return 201 with JobResponse. GET /api/v1/jobs/{job_id}: call job_service.get_job_by_id(), compute pending_count and progress_percentage, return 200 with JobResponse or 404. GET /api/v1/jobs/{job_id}/certificates: parse query params (status, limit, offset), call certificate_service.get_certificates_by_job(), compute download_url for each SUCCESS certificate, return 200 with CertificateListResponse. GET /api/v1/jobs: call job_service.list_jobs() with pagination, return JobListResponse.",
+    "Create app/api/routes/certificates.py: GET /api/v1/certificates/{certificate_id}/download: call certificate_service.get_certificate_by_id(), check status is SUCCESS, check file exists, return FileResponse with content_type='application/pdf', headers with content-disposition filename sanitized from recipient name, return 404 if not found or failed or file missing",
+    "Update app/main.py: Import and include routers: app.include_router(jobs_router, prefix='/api/v1', tags=['jobs']), app.include_router(certificates_router, prefix='/api/v1', tags=['certificates']). Add root endpoint GET / returning {\"message\": \"Bulk Certificate Generator API\", \"docs\": \"/docs\"}. Configure OpenAPI metadata with description, version, contact.",
+    "Create app/api/__init__.py and app/api/routes/__init__.py for proper package structure",
+    "Create tests/integration/test_api_jobs.py: test_create_job_success (post valid request, verify 201, verify job in DB, verify task queued), test_create_job_invalid_data (empty recipients, invalid email, future date), test_get_job_status (create job, get status, verify response structure), test_get_nonexistent_job (verify 404), test_list_job_certificates (create job with records, verify pagination and filtering), test_list_all_jobs (create multiple jobs, verify pagination)",
+    "Create tests/integration/test_api_certificates.py: test_download_certificate_success (create job, generate certificate manually, call download endpoint, verify PDF returned, verify headers), test_download_nonexistent_certificate (verify 404), test_download_failed_certificate (create failed record, verify 404 or appropriate error)",
+    "Create tests/e2e/test_full_workflow.py: test_complete_generation_workflow (1. POST /jobs with 5 recipients, 2. Poll GET /jobs/{id} until status COMPLETED, 3. GET /jobs/{id}/certificates verify 5 SUCCESS, 4. Download each certificate verify PDF valid, 5. Verify all files exist on disk), test_workflow_with_partial_failure (simulate 1 failure among 5, verify COMPLETED_WITH_ERRORS, verify 4 success + 1 failed), test_large_batch (POST with 50 recipients, verify all processed correctly)",
+    "Create tests/conftest.py: pytest fixtures: test_db (creates/drops test database), async_session (provides DB session with rollback), test_client (FastAPI TestClient), sample_recipients (fixture with valid test data), celery_eager_mode (configures Celery for sync execution in tests)",
+    "Update docker-compose.yml: Add test database service postgres_test for isolated testing",
+    "Create README.md: Project Overview section (1 paragraph), Architecture section (ASCII diagram showing FastAPI -> Celery -> PostgreSQL flow), Prerequisites (Docker, Docker Compose), Setup Instructions (clone, copy .env.example, docker-compose up), Running the Application (API at :8000, Swagger docs at /docs), Running Tests (pytest commands), API Endpoints section (all 5 endpoints with example curl requests and responses), Environment Variables table, Design Decisions (why async processing, why filesystem storage, failure handling strategy), Assumptions (template is hardcoded, no auth, local storage), Future Improvements (S3 storage, multiple templates, webhooks, auth), Project Structure (directory tree with descriptions)"
+  ],
+  "acceptance_criteria": [
+    "POST /api/v1/jobs accepts valid bulk requests, returns 201 with job_id, enqueues Celery task",
+    "POST /api/v1/jobs returns 400/422 for invalid data with clear error messages",
+    "GET /api/v1/jobs/{job_id} returns accurate job status with progress tracking",
+    "GET /api/v1/jobs/{job_id}/certificates returns paginated certificate list with download URLs",
+    "GET /api/v1/certificates/{certificate_id}/download serves PDF file with correct headers",
+    "All API endpoints have proper error handling (404 for not found, 500 for server errors)",
+    "OpenAPI documentation at /docs is complete and accurate",
+    "Integration tests cover all endpoints with success and error cases",
+    "End-to-end test successfully creates job, processes certificates, and downloads PDFs",
+    "README.md is comprehensive with all required sections and accurate instructions",
+    "Full workflow: POST job -> poll status -> download certificates works end-to-end"
+  ],
+  "verification": [
+    "Run: docker-compose exec api pytest tests/integration/test_api_jobs.py -v - all tests pass",
+    "Run: docker-compose exec api pytest tests/integration/test_api_certificates.py -v - all tests pass",
+    "Run: docker-compose exec api pytest tests/e2e/test_full_workflow.py -v -s - full workflow test passes",
+    "Run: docker-compose exec api pytest --cov=app --cov-report=html - verify >80% overall coverage",
+    "Manual test: curl -X POST http://localhost:8000/api/v1/jobs -H 'Content-Type: application/json' -d '{\"recipients\": [{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"course\": \"Python 101\", \"completion_date\": \"2024-03-15\"}]}' - verify 201 response",
+    "Manual test: Note job_id from above, curl http://localhost:8000/api/v1/jobs/{job_id} - verify status progresses to COMPLETED",
+    "Manual test: curl http://localhost:8000/api/v1/jobs/{job_id}/certificates - verify certificate listed",
+    "Manual test: curl http://localhost:8000/api/v1/certificates/{cert_id}/download -o test.pdf - verify PDF downloads and opens correctly",
+    "Check: Open http://localhost:8000/docs in browser - verify all endpoints documented with schemas",
+    "Verify: README instructions can be followed by a new developer to set up and run the project"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

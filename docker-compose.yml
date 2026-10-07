@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: certgen
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: certgen
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U certgen"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://certgen:password@postgres:5432/certgen
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - APP_ENV=development
+      - LOG_LEVEL=INFO
+      - MAX_RECIPIENTS_PER_JOB=1000
+      - CERTIFICATE_STORAGE_PATH=/app/data/certificates
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./data/certificates:/app/data/certificates
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://certgen:password@postgres:5432/certgen
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - APP_ENV=development
+      - LOG_LEVEL=INFO
+      - MAX_RECIPIENTS_PER_JOB=1000
+      - CERTIFICATE_STORAGE_PATH=/app/data/certificates
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./data/certificates:/app/data/certificates
+
+volumes:
+  postgres_data:

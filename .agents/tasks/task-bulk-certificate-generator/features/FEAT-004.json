@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Celery background processing and business logic services: Implements the async certificate generation task with graceful failure handling, job service for managing generation jobs, and certificate service for retrieval. This is the core business logic that orchestrates the bulk generation workflow. Depends on FEAT-001 (infrastructure), FEAT-002 (models), and FEAT-003 (PDF generation).",
+  "status": "pending",
+  "steps": [
+    "Create app/services/job_service.py: JobService class with methods: create_job_with_recipients(recipients: list[RecipientInput], db: AsyncSession) -> GenerationJob (transaction: create job + certificate_records in PENDING status, return job), get_job_by_id(job_id: UUID, db: AsyncSession) -> Optional[GenerationJob], update_job_status(job_id: UUID, status: str, db: AsyncSession, started_at/completed_at optional), increment_completed(job_id: UUID, db: AsyncSession), increment_failed(job_id: UUID, db: AsyncSession), finalize_job_status(job_id: UUID, db: AsyncSession) (logic: if failed_count == 0 -> COMPLETED, elif failed_count < total -> COMPLETED_WITH_ERRORS, else -> FAILED), list_jobs(db: AsyncSession, limit: int, offset: int) -> tuple[list[GenerationJob], int]",
+    "Create app/services/certificate_service.py: CertificateService class with methods: get_certificates_by_job(job_id: UUID, db: AsyncSession, status_filter: Optional[str], limit: int, offset: int) -> tuple[list[CertificateRecord], int], get_certificate_by_id(cert_id: UUID, db: AsyncSession) -> Optional[CertificateRecord], mark_certificate_success(cert_id: UUID, file_path: str, file_size: int, db: AsyncSession), mark_certificate_failed(cert_id: UUID, error_message: str, db: AsyncSession)",
+    "Create app/tasks/generate.py: Main Celery task @celery_app.task(bind=True, max_retries=3, default_retry_delay=60) generate_certificates_for_job(self, job_id: str). Logic: 1) Get sync DB session (not async for Celery), 2) Update job status to PROCESSING with started_at, 3) Query all PENDING certificate_records for this job, 4) Loop through records: try: a) Generate file path with FileManager, b) Ensure job directory exists, c) Call generate_certificate_pdf(), d) Mark certificate SUCCESS with file_path and size, e) Increment job completed_count, except Exception as e: mark certificate FAILED with error message, increment job failed_count, log error, continue loop, 5) After loop: finalize_job_status(), 6) Log completion summary. Add retry logic for database errors but not for individual certificate failures.",
+    "Update app/core/celery_app.py: Add celery configuration: task_serializer='json', result_serializer='json', accept_content=['json'], timezone='UTC', enable_utc=True, task_routes for generate_certificates_for_job to specific queue if needed",
+    "Create tests/unit/test_job_service.py: Mock database session, test create_job_with_recipients creates job + N records, test increment methods update counts, test finalize_job_status sets correct final status based on counts, test list_jobs pagination",
+    "Create tests/unit/test_certificate_service.py: Mock database, test get_certificates_by_job with pagination and status filter, test mark_certificate_success updates fields correctly, test mark_certificate_failed stores error message",
+    "Create tests/integration/test_celery_tasks.py: Use Celery eager mode (CELERY_TASK_ALWAYS_EAGER=True), real test database, test generate_certificates_for_job: create job with 3 valid recipients, trigger task, verify all 3 certificates generated, verify job status COMPLETED, verify files exist on disk. Test with 1 invalid recipient (force failure in PDF generation): verify job COMPLETED_WITH_ERRORS, verify 2 success + 1 failed."
+  ],
+  "acceptance_criteria": [
+    "create_job_with_recipients atomically creates job and all certificate records in one transaction",
+    "Celery task processes all recipients in a job sequentially",
+    "Individual certificate failure does not stop task execution",
+    "Job status correctly transitions: PENDING -> PROCESSING -> COMPLETED/COMPLETED_WITH_ERRORS/FAILED",
+    "completed_count and failed_count accurately track progress",
+    "Certificate records have correct status (SUCCESS/FAILED) after task completes",
+    "Failed certificates have error_message populated",
+    "Successful certificates have file_path and file_size_bytes populated",
+    "Task is idempotent: running twice on same job doesn't duplicate work (only PENDING records processed)",
+    "Integration test with real Celery task passes"
+  ],
+  "verification": [
+    "Run: docker-compose exec api pytest tests/unit/test_job_service.py -v - all tests pass",
+    "Run: docker-compose exec api pytest tests/unit/test_certificate_service.py -v - all tests pass",
+    "Run: docker-compose exec api pytest tests/integration/test_celery_tasks.py -v -s - task test passes, verify logs show processing",
+    "Run: docker-compose exec api pytest --cov=app.services --cov=app.tasks --cov-report=term - verify >80% coverage",
+    "Check: docker-compose exec worker celery -A app.core.celery_app inspect active - verify worker can receive tasks",
+    "Manual test: Create job in DB, queue task manually with python -c, verify certificates generated and job finalized"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

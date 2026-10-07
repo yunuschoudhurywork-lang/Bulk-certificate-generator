@@ -1,0 +1,40 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Project infrastructure setup: directory structure, Docker Compose, database configuration, and core dependencies. Creates the foundation with PostgreSQL, Redis, FastAPI app skeleton, Celery worker setup, Alembic migrations, and all configuration files. This feature is independent and must be completed first as all other features depend on it.",
+  "status": "pending",
+  "steps": [
+    "Create complete directory structure: app/{__init__.py,main.py,api/routes/,core/,models/,schemas/,services/,tasks/,templates/}, tests/{conftest.py,unit/,integration/,e2e/}, alembic/, data/certificates/",
+    "Create pyproject.toml with pinned dependencies: fastapi==0.109.2, uvicorn[standard]==0.27.1, sqlalchemy==2.0.27, alembic==1.13.1, psycopg2-binary==2.9.9, pydantic==2.6.1, pydantic-settings==2.1.0, celery==5.3.6, redis==5.0.1, reportlab==4.1.0, pytest==8.0.0, pytest-asyncio==0.23.5, pytest-cov==4.1.0, httpx==0.26.0, python-multipart==0.0.9",
+    "Create docker-compose.yml with 4 services: postgres (image: postgres:15-alpine, env: POSTGRES_USER/PASSWORD/DB, port 5432, volume for data), redis (image: redis:7-alpine, port 6379), api (build: ., command: uvicorn app.main:app --host 0.0.0.0 --reload, port 8000, depends_on postgres+redis, volume mount for hot reload), worker (build: ., command: celery -A app.core.celery_app worker --loglevel=info, depends_on postgres+redis, shared volume with api for certificates)",
+    "Create Dockerfile with multi-stage build: base with Python 3.12-slim, install system deps (gcc, postgresql-dev), copy pyproject.toml, install dependencies with pip, copy app code, set PYTHONPATH",
+    "Create .env.example with all required variables: DATABASE_URL=postgresql://certgen:password@postgres:5432/certgen, REDIS_URL=redis://redis:6379/0, CELERY_BROKER_URL, CELERY_RESULT_BACKEND, APP_ENV=development, LOG_LEVEL=INFO, MAX_RECIPIENTS_PER_JOB=1000, CERTIFICATE_STORAGE_PATH=/app/data/certificates",
+    "Create .gitignore: __pycache__/, *.pyc, .env, .venv/, venv/, data/certificates/*.pdf, .pytest_cache/, .coverage, htmlcov/, .mypy_cache/, *.egg-info/",
+    "Create app/core/config.py: Pydantic Settings class with all env vars, database_url, redis_url, celery config, app settings, validator for paths",
+    "Create app/core/database.py: SQLAlchemy engine with async support (create_async_engine), AsyncSession factory, Base declarative class, get_db dependency for FastAPI with proper cleanup",
+    "Create app/core/celery_app.py: Celery app instance with Redis broker/backend, task autodiscover from app.tasks, configuration for result serializer and task settings",
+    "Initialize Alembic: run 'alembic init alembic', configure alembic.ini with sqlalchemy.url from config, modify alembic/env.py to import Base and models, set target_metadata = Base.metadata",
+    "Create app/main.py skeleton: FastAPI app with title='Bulk Certificate Generator API', version='1.0.0', CORS middleware (allow origins for dev), include_router for jobs and certificates, startup event to create data/certificates directory",
+    "Create app/__init__.py files in all subdirectories to make them proper Python packages"
+  ],
+  "acceptance_criteria": [
+    "docker-compose up -d starts all 4 services without errors",
+    "PostgreSQL accessible at localhost:5432 with credentials from .env",
+    "Redis accessible at localhost:6379",
+    "FastAPI app responds at http://localhost:8000 with default routes",
+    "Celery worker starts and connects to Redis broker",
+    "alembic revision --autogenerate runs without errors",
+    "Directory structure matches specification exactly",
+    "All __init__.py files present for proper package imports"
+  ],
+  "verification": [
+    "Run: docker-compose up -d && docker-compose ps - verify all 4 containers running",
+    "Run: docker-compose logs api - verify FastAPI started without errors",
+    "Run: docker-compose logs worker - verify Celery worker connected",
+    "Run: curl http://localhost:8000/docs - verify Swagger UI loads",
+    "Run: docker-compose exec postgres psql -U certgen -d certgen -c '\\dt' - verify DB connection",
+    "Run: docker-compose exec api alembic current - verify Alembic configured"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

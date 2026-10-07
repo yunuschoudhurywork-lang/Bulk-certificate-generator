@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Database schema and models: SQLAlchemy models for generation_jobs and certificate_records tables, Pydantic schemas for API validation, and Alembic migration. Implements the data layer with proper relationships, constraints, indexes, and validation rules per specification. Depends on FEAT-001 (infrastructure).",
+  "status": "pending",
+  "steps": [
+    "Create app/models/job.py: GenerationJob model with fields: id (UUID primary key, server_default=gen_random_uuid()), status (String(50), CHECK constraint for PENDING|PROCESSING|COMPLETED|COMPLETED_WITH_ERRORS|FAILED), total_recipients (Integer), completed_count (Integer, default=0), failed_count (Integer, default=0), created_at (TIMESTAMP with timezone, default=now()), started_at (TIMESTAMP nullable), completed_at (TIMESTAMP nullable). Add index on status and created_at DESC. Add relationship to certificate_records with cascade delete.",
+    "Create app/models/certificate.py: CertificateRecord model with fields: id (UUID primary key), job_id (UUID foreign key to generation_jobs with ondelete=CASCADE), recipient_name (String(200)), recipient_email (String(255)), course (String(200)), completion_date (Date), status (String(50), CHECK constraint for PENDING|SUCCESS|FAILED), error_message (Text nullable), file_path (String(500) nullable), file_size_bytes (Integer nullable), created_at (TIMESTAMP with timezone), generated_at (TIMESTAMP nullable). Add indexes on job_id, status, recipient_email. Add relationship back to job.",
+    "Create app/schemas/job.py: RecipientInput model with fields: name (str, Field min_length=1 max_length=200), email (EmailStr), course (str, Field min_length=1 max_length=200), completion_date (date, must be in past or today). CreateJobRequest model with recipients (list[RecipientInput], Field min_length=1 max_length=1000). JobResponse model with job_id, status, total_recipients, completed_count, failed_count, pending_count (computed), created_at, started_at, completed_at, progress_percentage (computed). JobListResponse for pagination with total, limit, offset, jobs list.",
+    "Create app/schemas/certificate.py: CertificateResponse model with certificate_id, recipient_name, recipient_email, status, generated_at, file_size_bytes, download_url (computed), error_message (nullable). CertificateListResponse for pagination with job_id, total, limit, offset, certificates list.",
+    "Generate Alembic migration: Run 'alembic revision --autogenerate -m \"create generation_jobs and certificate_records tables\"'. Review migration to ensure indexes, constraints, and foreign keys are correct. Ensure UUID extension is enabled (CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\").",
+    "Run migration: Execute 'alembic upgrade head' to create tables in database",
+    "Update app/models/__init__.py to export GenerationJob and CertificateRecord for easy imports",
+    "Update app/schemas/__init__.py to export all schemas for easy imports"
+  ],
+  "acceptance_criteria": [
+    "GenerationJob model has all required fields, constraints, and indexes",
+    "CertificateRecord model has all required fields with proper foreign key cascade",
+    "Pydantic schemas validate all edge cases (empty name, invalid email, future dates)",
+    "Alembic migration creates both tables with correct column types",
+    "Database has proper indexes for query performance",
+    "Relationships between models work bidirectionally",
+    "UUID primary keys use PostgreSQL gen_random_uuid()",
+    "CHECK constraints enforce valid status values"
+  ],
+  "verification": [
+    "Run: docker-compose exec api alembic upgrade head - verify migration applies cleanly",
+    "Run: docker-compose exec postgres psql -U certgen -d certgen -c '\\d generation_jobs' - verify table structure",
+    "Run: docker-compose exec postgres psql -U certgen -d certgen -c '\\d certificate_records' - verify foreign key and indexes",
+    "Run: docker-compose exec api python -c 'from app.models import GenerationJob, CertificateRecord; print(\"Models imported successfully\")' - verify imports",
+    "Run: docker-compose exec api python -c 'from app.schemas.job import CreateJobRequest; CreateJobRequest(recipients=[{\"name\": \"Test\", \"email\": \"invalid\", \"course\": \"Course\", \"completion_date\": \"2024-01-01\"}])' - should raise validation error for invalid email"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
