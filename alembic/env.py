@@ -15,9 +15,8 @@ from app.core.database import Base
 from app.core.config import settings
 
 # Import all models to ensure they're registered with Base
-# This will be populated in future features:
-# from app.models.job import GenerationJob
-# from app.models.certificate import CertificateRecord
+from app.models.job import GenerationJob
+from app.models.certificate import CertificateRecord
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
