@@ -1,12 +1,17 @@
 """
 Main FastAPI application entry point.
 """
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.services.file_manager import FileManager, FileManagerError
+
+
+logger = logging.getLogger(__name__)
 
 # Create FastAPI application
 app = FastAPI(
@@ -30,9 +35,14 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize resources on application startup."""
-    # Ensure certificate storage directory exists
-    cert_dir = Path(settings.certificate_storage_path)
-    cert_dir.mkdir(parents=True, exist_ok=True)
+    # Validate certificate storage directory
+    try:
+        file_manager = FileManager()
+        file_manager.validate_storage_path()
+        logger.info(f"Certificate storage validated at: {settings.certificate_storage_path}")
+    except FileManagerError as e:
+        logger.error(f"Certificate storage validation failed: {e}")
+        raise RuntimeError(f"Failed to initialize certificate storage: {e}") from e
 
 
 @app.get("/", tags=["Health"])

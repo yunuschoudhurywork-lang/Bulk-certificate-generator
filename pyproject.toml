@@ -20,6 +20,7 @@ dependencies = [
     "pytest-cov==4.1.0",
     "httpx==0.26.0",
     "python-multipart==0.0.9",
+    "pypdf2==3.0.1",
 ]
 
 [build-system]
