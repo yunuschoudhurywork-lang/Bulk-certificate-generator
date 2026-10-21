@@ -26,6 +26,7 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
     result_expires=86400,  # Results expire after 24 hours
+    imports=["app.tasks.generate"],
 )
 
 # Auto-discover tasks from app.tasks module

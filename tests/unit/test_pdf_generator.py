@@ -84,23 +84,28 @@ class TestPDFGenerator:
         # Check file size is reasonable (professional certificate should be > 1KB)
         assert output_path.stat().st_size > 1000, "Certificate PDF should be reasonably sized"
     
-    def test_invalid_output_path(self):
-        """Test error handling for invalid output path."""
+    def test_invalid_output_path(self, tmp_path):
+        """Test error handling when PDF creation fails."""
         # Arrange
-        invalid_path = Path("/nonexistent/directory/that/does/not/exist/cert.pdf")
+        # Create a directory where we want to write the file
+        # Then replace it with a file to cause a write error
+        blocking_file = tmp_path / "blocked"
+        blocking_file.write_text("blocking")
+        
+        # Try to write a PDF where a file already exists as a directory component
+        invalid_path = blocking_file / "cert.pdf"
         recipient_name = "Test User"
         course = "Test Course"
         completion_date = date(2024, 1, 1)
         
         # Act & Assert
-        # Note: This might succeed on some systems if they create parent dirs
-        # So we test with a truly invalid path
+        # This will fail because we can't create a directory where a file exists
         with pytest.raises(CertificateGenerationError):
             generate_certificate_pdf(
                 recipient_name,
                 course,
                 completion_date,
-                Path("/root/no_permission/cert.pdf")  # Likely no permission
+                invalid_path
             )
     
     def test_empty_recipient_name(self, tmp_path):

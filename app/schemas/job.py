@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import List
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, computed_field
 
 
 class RecipientInput(BaseModel):
@@ -88,11 +88,23 @@ class JobResponse(BaseModel):
     total_recipients: int = Field(description="Total number of recipients")
     completed_count: int = Field(description="Number of successfully generated certificates")
     failed_count: int = Field(description="Number of failed certificate generations")
-    pending_count: int = Field(description="Number of certificates still pending")
     created_at: datetime = Field(description="When the job was created")
     started_at: datetime | None = Field(description="When processing started")
     completed_at: datetime | None = Field(description="When the job finished")
-    progress_percentage: float = Field(description="Completion percentage (0-100)")
+    
+    @computed_field
+    @property
+    def pending_count(self) -> int:
+        """Compute the number of certificates still pending."""
+        return self.total_recipients - self.completed_count - self.failed_count
+    
+    @computed_field
+    @property
+    def progress_percentage(self) -> float:
+        """Compute the completion percentage (0-100)."""
+        if self.total_recipients == 0:
+            return 0.0
+        return round((self.completed_count + self.failed_count) / self.total_recipients * 100, 2)
     
     model_config = {
         "from_attributes": True,

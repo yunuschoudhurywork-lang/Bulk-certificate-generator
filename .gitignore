@@ -23,14 +23,19 @@ wheels/
 *.egg
 
 # Virtual environments
-.env
 .venv/
 venv/
 ENV/
 env/
 
-# Generated certificates
-data/certificates/*.pdf
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Generated certificate files
+data/certificates/
+certificates/
 
 # Testing
 .pytest_cache/

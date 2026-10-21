@@ -61,7 +61,8 @@ async def health_check():
     return {"status": "healthy"}
 
 
-# Import and include routers (will be added in future features)
-# from app.api.routes import jobs, certificates
-# app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["Jobs"])
-# app.include_router(certificates.router, prefix="/api/v1/certificates", tags=["Certificates"])
+# Import and include routers
+from app.api.routes import jobs, certificates
+
+app.include_router(jobs.router, prefix="/api/v1", tags=["Jobs"])
+app.include_router(certificates.router, prefix="/api/v1", tags=["Certificates"])

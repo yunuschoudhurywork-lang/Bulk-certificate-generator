@@ -203,6 +203,10 @@ def generate_certificates_for_job(self, job_id: str) -> dict:
                 db.commit()
         
         # Finalize job status based on results
+        # Read final counters and update job status in a single transaction
+        # to avoid race condition where counters and status appear inconsistent
+        db.refresh(job)
+        
         if job.failed_count == 0:
             final_status = "COMPLETED"
         elif job.failed_count < job.total_recipients:

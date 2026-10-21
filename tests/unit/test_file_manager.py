@@ -130,13 +130,13 @@ class TestFileManager:
         fm = FileManager(base_path=tmp_path)
         cert_id = uuid4()
         test_cases = [
-            ("O'Brien", "obrien"),
-            ("José García", "jos_garca"),
-            ("Anne-Marie", "annemarie"),
-            ("User@Company", "usercompany"),
-            ("Test/Path", "testpath"),
-            ("Test\\Path", "testpath"),
-            ("User<Name>", "username"),
+            ("O'Brien", "obrien"),  # Apostrophe removed
+            ("José García", "josé_garcía"),  # Unicode preserved, space to underscore
+            ("Anne-Marie", "anne_marie"),  # Hyphen to underscore
+            ("User@Company", "usercompany"),  # @ removed
+            ("Test/Path", "testpath"),  # / removed
+            ("Test\\Path", "testpath"),  # \ removed
+            ("User<Name>", "username"),  # < > removed
         ]
         
         # Act & Assert
